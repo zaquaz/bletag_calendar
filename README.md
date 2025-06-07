@@ -47,21 +47,6 @@ Perfect for:
 - **Image freshness checking**: Avoids regenerating recent images
 - **Comprehensive logging**: Detailed operation tracking for troubleshooting
 
-## 📁 Project Structure
-
-```
-BLETag/
-├── calendar_tag_wrapper.py      # Main automation script
-├── outlook_cal_status.py        # Calendar status detection & image generation
-├── gicisky_writer.py           # Enhanced BLE communication
-├── image_transfer.py           # Advanced image processing (DEPRECATED - functionality moved to gicisky_writer.py)
-├── calendar_tag_config.ini     # Configuration template
-├── requirements.txt            # Python dependencies
-├── calendar_status.json        # Status tracking file (auto-generated)
-├── status_output.png          # Generated status image (auto-generated)
-└── README.md                   # This file
-```
-
 ## 🛠️ Installation
 
 ### Prerequisites
@@ -73,7 +58,7 @@ BLETag/
 
 1. **Clone and navigate to the project:**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/zaquaz/bletag_calendar.git
    cd BLETag
    ```
 
@@ -84,8 +69,8 @@ BLETag/
 
 3. **Configure your settings:**
    ```bash
-   cp calendar_tag_config.ini my_config.ini
-   # Edit my_config.ini with your calendar URL and device address
+   calendar_tag_wrapper.py --create-config
+   # Edit calendar_tag_config.ini with your calendar URL and device address
    ```
 
 ## ⚙️ Configuration
@@ -121,25 +106,25 @@ BLETag/
 
 Run the complete automated workflow:
 ```bash
-python calendar_tag_wrapper.py --config my_config.ini
+python calendar_tag_wrapper.py --config calendar_tag_config.ini
 ```
 
 ### Advanced Options
 
 **Test without sending to device:**
 ```bash
-python calendar_tag_wrapper.py --config my_config.ini --dry-run
+python calendar_tag_wrapper.py --config calendar_tag_config.ini --dry-run
 ```
 
 **Force update regardless of status changes:**
 ```bash
-python calendar_tag_wrapper.py --config my_config.ini --force-update
+python calendar_tag_wrapper.py --config calendar_tag_config.ini --force-update
 ```
 
 **Use command-line overrides:**
 ```bash
 python calendar_tag_wrapper.py \
-  --config my_config.ini \
+  --config calendar_tag_config.ini \
   --device AA:BB:CC:DD:EE:FF \
   --rotation 180 \
   --mirror-x
