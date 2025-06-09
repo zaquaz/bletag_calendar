@@ -293,15 +293,21 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
     img = Image.new('RGB', (width, height), 'white')
     draw = ImageDraw.Draw(img)
     
-    # Font sizes based on tag size
-    if tag_size == "2.9":
-        font_large = get_font(48)
-        font_medium = get_font(32)
-        font_small = get_font(24)
-    else:  # 2.1"
-        font_large = get_font(40)
-        font_medium = get_font(28)
-        font_small = get_font(20)
+    # Proportional font sizes and dimensions
+    # Base these on height, ensuring minimum sizes for very small displays if necessary
+    font_large_size = max(12, int(height * 0.375))  # e.g., for 2.9" (h=128): 48
+    font_medium_size = max(10, int(height * 0.25)) # e.g., for 2.9" (h=128): 32
+    font_small_size = max(8, int(height * 0.1875)) # e.g., for 2.9" (h=128): 24
+
+    font_large = get_font(font_large_size)
+    font_medium = get_font(font_medium_size)
+    font_small = get_font(font_small_size)
+
+    # Proportional spacing and margins
+    general_padding = max(2, int(height * 0.04))       # e.g., ~5 for h=128 (used for line spacing)
+    border_thickness = max(1, int(min(width, height) * 0.02)) # e.g., ~2 for 128x296
+    top_margin_ooo = max(5, int(height * 0.08))        # e.g., ~10 for h=128
+    bottom_margin_ooo = max(8, int(height * 0.12))     # e.g., ~15 for h=128
 
     if status == "Busy":
         # Top red section with "BUSY"
@@ -332,11 +338,11 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
         draw.rectangle([0, 0, width, height], fill='white')
         
         # 2px red border around the entire image
-        border_width = 2
-        draw.rectangle([0, 0, width, border_width], fill='red')  # top
-        draw.rectangle([0, 0, border_width, height], fill='red')  # left
-        draw.rectangle([width-border_width, 0, width, height], fill='red')  # right
-        draw.rectangle([0, height-border_width, width, height], fill='red')  # bottom
+        # border_width = 2 # Replaced by proportional border_thickness
+        draw.rectangle([0, 0, width, border_thickness], fill='red')  # top
+        draw.rectangle([0, 0, border_thickness, height], fill='red')  # left
+        draw.rectangle([width-border_thickness, 0, width, height], fill='red')  # right
+        draw.rectangle([0, height-border_thickness, width, height], fill='red')  # bottom
         
         # Red "Out of Office" text higher up
         ooo_text = "Out of Office"
@@ -344,7 +350,7 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
         ooo_width = ooo_bbox[2] - ooo_bbox[0]
         ooo_height = ooo_bbox[3] - ooo_bbox[1]
         ooo_x = (width - ooo_width) // 2
-        ooo_y = 10  # 10px from top (moved higher)
+        ooo_y = top_margin_ooo  # 10px from top (moved higher) -> use proportional top_margin_ooo
         draw.text((ooo_x, ooo_y), ooo_text, font=font_large, fill='red')
         
         # Black "ending at" and datetime text at bottom on separate lines
@@ -376,11 +382,11 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
         # Calculate total height needed for all text lines
         line_heights = []
         for text, font in texts_to_draw:
-            bbox = draw.textbbox((0, 0), text, font=font)
-            line_heights.append(bbox[3] - bbox[1])
+            line_bbox = draw.textbbox((0,0), text, font=font)
+            line_heights.append(line_bbox[3] - line_bbox[1])
         
-        total_bottom_height = sum(line_heights) + (len(line_heights) - 1) * 5  # 5px spacing between lines
-        bottom_start_y = height - total_bottom_height - 15  # 15px from bottom (moved lower)
+        total_bottom_height = sum(line_heights) + (len(line_heights) - 1) * general_padding  # 5px spacing -> general_padding
+        bottom_start_y = height - total_bottom_height - bottom_margin_ooo  # 15px from bottom -> bottom_margin_ooo
         
         # Draw all text lines
         current_y = bottom_start_y
@@ -389,7 +395,7 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
             text_width = bbox[2] - bbox[0]
             text_x = (width - text_width) // 2
             draw.text((text_x, current_y), text, font=font, fill='black')
-            current_y += line_heights[i] + 5  # Move to next line position
+            current_y += line_heights[i] + general_padding # 5px spacing -> general_padding
 
     elif status == "Free":
         # Black rectangle at top with "FREE" in white
@@ -411,17 +417,12 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
         
         # Calculate spacing for two lines of text
         if next_event_time:
-            # Calculate time until next event
+            # Show next event time
             time_diff = next_event_time - now
             if time_diff.days > 0:
                 next_text = f"Next busy: {next_event_time.strftime('%b %d %H:%M')}"
             else:
-                hours = time_diff.seconds // 3600
-                minutes = (time_diff.seconds % 3600) // 60
-                if hours > 0:
-                    next_text = f"Next busy in {hours}h {minutes}m"
-                else:
-                    next_text = f"Next busy in {minutes}m"
+                next_text = f"Next busy at {next_event_time.strftime('%H:%M')}"
         else:
             next_text = "No upcoming events"
         
@@ -429,19 +430,19 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
         time_bbox = draw.textbbox((0, 0), time_text, font=font_medium)
         next_bbox = draw.textbbox((0, 0), next_text, font=font_small)
         
-        total_height = (time_bbox[3] - time_bbox[1]) + (next_bbox[3] - next_bbox[1]) + 5  # 5px spacing
-        start_y = top_height + (height - top_height - total_height) // 2
+        total_height_text = (time_bbox[3] - time_bbox[1]) + (next_bbox[3] - next_bbox[1]) + general_padding  # 5px spacing -> general_padding
+        start_y_text = top_height + (height - top_height - total_height_text) // 2
         
         # Draw "As of" line
         time_width = time_bbox[2] - time_bbox[0]
         time_x = (width - time_width) // 2
-        draw.text((time_x, start_y), time_text, font=font_medium, fill='black')
+        draw.text((time_x, start_y_text), time_text, font=font_medium, fill='black')
         
-        # Draw next event line
+        # Draw "Next event" line
         next_width = next_bbox[2] - next_bbox[0]
         next_x = (width - next_width) // 2
-        next_y = start_y + (time_bbox[3] - time_bbox[1]) + 5
-        draw.text((next_x, next_y), next_text, font=font_small, fill='black')
+        next_y_pos = start_y_text + (time_bbox[3] - time_bbox[1]) + general_padding # 5px spacing -> general_padding
+        draw.text((next_x, next_y_pos), next_text, font=font_small, fill='black')
 
     else:  # Error
         error_text = "Calendar Error"
