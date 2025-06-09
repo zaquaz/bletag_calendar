@@ -153,10 +153,18 @@ def run_command(cmd_args, description):
             timeout=300  # 5 minute timeout
         )
         
-        logger.info(f"✅ {description} completed successfully")
-        if result.stdout.strip():
-            logger.info(f"   Output: {result.stdout.strip()}")
+        # Check for failure indicators in the output
+        output = result.stdout.strip() if result.stdout else ""
+        if output:
+            logger.info(f"   Output: {output}")
+            
+        # Check for common failure patterns in output
+        failure_indicators = ["❌ Failed", "Error:", "ERROR:", "Exception:", "Traceback"]
+        if any(indicator in output for indicator in failure_indicators):
+            logger.error(f"❌ {description} failed (detected failure in output)")
+            return False
         
+        logger.info(f"✅ {description} completed successfully")
         return True
         
     except subprocess.CalledProcessError as e:
