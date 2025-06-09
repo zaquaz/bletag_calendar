@@ -360,7 +360,7 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
             
         # Add next event info only if there is an actual next event
         if next_event_time:
-            now = datetime.now()
+            now = datetime.now(timezone.utc).astimezone()
             time_diff = next_event_time - now
             if time_diff.days > 0:
                 next_text = f"Next event: {next_event_time.strftime('%b %d %H:%M')}"
@@ -406,7 +406,7 @@ def create_status_image(status: str, start_time: Optional[datetime], end_time: O
         draw.text((free_x, free_y), free_text, font=font_large, fill='white')
         
         # Bottom white section with current time and next event info
-        now = datetime.now()
+        now = datetime.now(timezone.utc).astimezone()
         time_text = f"As of {now.strftime('%H:%M')}"
         
         # Calculate spacing for two lines of text
@@ -506,10 +506,18 @@ async def main():
     # Check if status has changed
     status_changed, change_reason = has_status_changed(current_hash, previous_status)
     
+    # Check if image file exists (but don't update based on age alone to preserve battery)
+    image_path = args.save_image if args.save_image else "status_output.png"
+    image_missing = not os.path.exists(image_path)
+    
     logger.info(f"🔍 Change detection: {change_reason}")
     
-    # Determine if we should generate image
-    should_generate = status_changed or args.force_update
+    # Determine if we should generate image (battery-conscious approach)
+    # Only update when: status changed, force requested, or image file missing
+    should_generate = status_changed or args.force_update or image_missing
+    
+    if image_missing:
+        logger.info("📄 Image file missing, will generate new image")
     
     if not should_generate:
         logger.info("⏭️  Status unchanged, skipping image generation")
