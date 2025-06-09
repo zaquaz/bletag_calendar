@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Default configuration
-DEFAULT_DEVICE_ADDRESS = "449AC27E-87FB-D5F7-10F1-686488D3EA69"
+DEFAULT_DEVICE_ADDRESS = "PICKSMART"
 DEFAULT_ROTATION = 90
 DEFAULT_MIRROR_X = True
 DEFAULT_MIRROR_Y = False
@@ -110,7 +110,7 @@ check_window = 5
 [device]
 # Bluetooth device address of your e-ink tag
 # You can find this by scanning for BLE devices or checking your device pairing info
-address = 449AC27E-87FB-D5F7-10F1-686488D3EA69
+address = PICKSMART
 
 # Image rotation in degrees (0, 90, 180, 270)
 rotation = 90
