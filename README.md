@@ -33,7 +33,7 @@ Perfect for:
 - **Rotation support**: 0°, 90°, 180°, 270° rotation options
 - **Mirroring capabilities**: Horizontal and vertical image mirroring
 - **Smart compression**: Gicisky-compatible image compression for faster transfers
-- **Multiple tag sizes**: Support for 2.1" and 2.9" e-ink displays
+- **Multiple tag sizes**: Support for 1.54", 2.1", 2.9", 4.2", and 7.5" e-ink displays with proportional scaling
 
 ### Robust BLE Communication
 - **Enhanced reliability**: 30-second timeouts with exponential backoff retry
@@ -62,7 +62,7 @@ Perfect for:
 1. **Clone and navigate to the project:**
    ```bash
    git clone https://github.com/zaquaz/bletag_calendar.git
-   cd BLETag
+   cd bletag_calendar
    ```
 
 2. **Install dependencies:**
@@ -72,7 +72,7 @@ Perfect for:
 
 3. **Configure your settings:**
    ```bash
-   calendar_tag_wrapper.py --create-config
+   python calendar_tag_wrapper.py --create-config
    # Edit calendar_tag_config.ini with your calendar URL and device address
    ```
 
@@ -89,7 +89,7 @@ Perfect for:
    ```ini
    [calendar]
    ics_url = https://outlook.office365.com/owa/calendar/YOUR_CALENDAR_ID/calendar.ics
-   tag_size = 2.9
+   tag_size = 2.9  # Supported sizes: 1.54, 2.1, 2.9, 4.2, 7.5
    check_window = 5
    
    [device]
@@ -210,7 +210,7 @@ Add to your crontab to update every 5 minutes:
 crontab -e
 
 # Add this line (adjust paths as needed)
-*/5 * * * * cd /path/to/BLETag && /usr/bin/python3 calendar_tag_wrapper.py --config my_config.ini
+*/5 * * * * cd /path/to/bletag_calendar && /usr/bin/python3 calendar_tag_wrapper.py --config my_config.ini
 ```
 
 ### Windows Task Scheduler
@@ -221,7 +221,7 @@ crontab -e
 4. Set action: Start program
    - Program: `python`
    - Arguments: `calendar_tag_wrapper.py --config my_config.ini`
-   - Start in: `C:\path\to\BLETag`
+   - Start in: `C:\path\to\bletag_calendar`
 
 ## 🐛 Troubleshooting
 
@@ -270,6 +270,8 @@ Extend `gicisky_writer.py` to support additional e-ink tag models:
 - Add new device configurations
 - Implement specific protocol variations
 - Add size-specific image processing
+
+The image generation system automatically scales fonts, borders, and spacing proportionally based on the selected tag size, ensuring consistent appearance across all supported display dimensions.
 
 ## 📊 Status Change Detection
 
