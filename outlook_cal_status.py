@@ -462,7 +462,7 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Outlook Calendar Status to Image")
     parser.add_argument("--ics-url", default="", help="Outlook ICS calendar URL")
-    parser.add_argument("--tag-size", choices=["2.13", "2.9","4.2","7.5"], default="2.9",
+    parser.add_argument("--tag-size", choices=["1.54", "2.13", "2.9", "4.2", "7.5"], default="2.9",
                        help="Tag size in inches (default: 2.9)")
     parser.add_argument("--check-window", type=int, default=DEFAULT_CHECK_WINDOW_MINUTES,
                        help=f"Minutes to check ahead for meetings (default: {DEFAULT_CHECK_WINDOW_MINUTES})")
