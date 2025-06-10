@@ -26,7 +26,7 @@ STATUS_FILE = "calendar_status.json"  # File to track previous status
 # Supported tag sizes
 TAG_SIZES = {
     "1.54": (200, 200),    # 1.54 inch display
-    "2.1": (250, 122),     # 2.13 inch display
+    "2.13": (250, 122),     # 2.13 inch display
     "2.9": (296, 128),     # 2.9 inch display
     "4.2": (400, 300),     # 4.2 inch display
     "7.5": (640, 384),     # 7.5 inch display
@@ -462,7 +462,7 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Outlook Calendar Status to Image")
     parser.add_argument("--ics-url", default="", help="Outlook ICS calendar URL")
-    parser.add_argument("--tag-size", choices=["2.1", "2.9","4.2","7.5"], default="2.9",
+    parser.add_argument("--tag-size", choices=["2.13", "2.9","4.2","7.5"], default="2.9",
                        help="Tag size in inches (default: 2.9)")
     parser.add_argument("--check-window", type=int, default=DEFAULT_CHECK_WINDOW_MINUTES,
                        help=f"Minutes to check ahead for meetings (default: {DEFAULT_CHECK_WINDOW_MINUTES})")
