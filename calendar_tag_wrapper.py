@@ -101,7 +101,7 @@ def create_example_config(config_path):
 # Your Outlook calendar ICS URL (get this from Outlook -> Calendar Settings -> Shared Calendars)
 ics_url = https://outlook.live.com/owa/calendar/your-calendar-id/reachableFreeBusy.ics
 
-# Tag size in inches (2.1 or 2.9)
+# Tag size in inches (1.54, 2.13, 2.9, 4.2, or 7.5)
 tag_size = 2.9
 
 # Minutes to check ahead for upcoming meetings
@@ -267,7 +267,7 @@ Examples:
     parser.add_argument("--ics-url", 
                        default=config_data.get('ics_url'),
                        help="Outlook ICS calendar URL (passed to outlook_cal_status.py)")
-    parser.add_argument("--tag-size", choices=["2.1", "2.9"], 
+    parser.add_argument("--tag-size", choices=["1.54", "2.13", "2.9", "4.2", "7.5"], 
                        default=config_data.get('tag_size', "2.9"),
                        help="Tag size in inches (default: 2.9)")
     parser.add_argument("--check-window", type=int, 

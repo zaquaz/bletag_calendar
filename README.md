@@ -33,7 +33,7 @@ Perfect for:
 - **Rotation support**: 0°, 90°, 180°, 270° rotation options
 - **Mirroring capabilities**: Horizontal and vertical image mirroring
 - **Smart compression**: Gicisky-compatible image compression for faster transfers
-- **Multiple tag sizes**: Support for 1.54", 2.1", 2.9", 4.2", and 7.5" e-ink displays with proportional scaling
+- **Multiple tag sizes**: Support for 1.54", 2.13", 2.9", 4.2", and 7.5" e-ink displays with proportional scaling
 
 ### Robust BLE Communication
 - **Enhanced reliability**: 30-second timeouts with exponential backoff retry
@@ -89,7 +89,7 @@ Perfect for:
    ```ini
    [calendar]
    ics_url = https://outlook.office365.com/owa/calendar/YOUR_CALENDAR_ID/calendar.ics
-   tag_size = 2.9  # Supported sizes: 1.54, 2.1, 2.9, 4.2, 7.5
+   tag_size = 2.9  # Supported sizes: 1.54, 2.13, 2.9, 4.2, 7.5
    check_window = 5
    
    [device]
