@@ -116,16 +116,33 @@ def get_calendar_events(ics_url: str) -> Optional[Calendar]:
         response = requests.get(ics_url, timeout=60)
         response.raise_for_status()
         
-        # Check if response looks like HTML instead of iCalendar data
+        # Check Content-Type header to reliably detect HTML content
+        content_type = response.headers.get('content-type', '').lower()
         response_text = response.text.strip()
-        if response_text.startswith('<') or 'html' in response_text.lower()[:100]:
+        
+        # Check if response is HTML based on Content-Type header first, then fallback to content inspection
+        is_html = (
+            'text/html' in content_type or 
+            'application/xhtml+xml' in content_type or
+            # Fallback to content inspection for servers with incorrect headers
+            (response_text.startswith('<') and ('html' in response_text.lower()[:200] or 'DOCTYPE' in response_text[:200]))
+        )
+        
+        if is_html:
             logger.error("❌ Calendar URL returned HTML content instead of iCalendar data")
+            logger.error(f"   Content-Type: {response.headers.get('content-type', 'unknown')}")
             logger.error("   This usually means:")
             logger.error("   • The calendar URL requires authentication")
-            logger.error("   • The calendar is private and not publicly accessible")
+            logger.error("   • The calendar is private and not publicly accessible") 
             logger.error("   • The URL format has changed")
             logger.error(f"   Response preview: {response_text[:200]}...")
             return None
+        
+        # Check if Content-Type suggests iCalendar format
+        if content_type and not any(ct in content_type for ct in ['text/calendar', 'application/ics', 'text/plain']):
+            logger.warning(f"⚠️  Unexpected Content-Type: {response.headers.get('content-type', 'unknown')}")
+            logger.warning("   Expected: text/calendar, application/ics, or text/plain")
+            logger.warning("   Attempting to parse anyway...")
         
         cal = Calendar.from_ical(response_text)
         logger.info("Calendar fetched and parsed successfully")

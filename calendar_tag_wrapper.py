@@ -423,17 +423,22 @@ Examples:
     
     if args.dry_run:
         logger.info("🏃 DRY RUN: Would send image to device, but skipping due to --dry-run")
-        logger.info(f"   Would run: python gicisky_writer.py --device {args.device} --rotation {args.rotation}")
-        logger.info(f"             --scan-timeout {args.scan_timeout} --connection-timeout {args.connection_timeout}")
-        logger.info(f"             {STATUS_IMAGE_PATH}")
+        
+        # Build complete command string
+        cmd_preview = f"python gicisky_writer.py --device {args.device} --rotation {args.rotation}"
+        cmd_preview += f" --scan-timeout {args.scan_timeout} --connection-timeout {args.connection_timeout}"
+        
         if mirror_x:
-            logger.info("   Would include: --mirror-x")
+            cmd_preview += " --mirror-x"
         if args.mirror_y:
-            logger.info("   Would include: --mirror-y")
+            cmd_preview += " --mirror-y"
         if args.compression:
-            logger.info("   Would include: --compression")
+            cmd_preview += " --compression"
         if args.no_red:
-            logger.info("   Would include: --no-red")
+            cmd_preview += " --no-red"
+            
+        cmd_preview += f" {STATUS_IMAGE_PATH}"
+        logger.info(f"   Would run: {cmd_preview}")
         return 0
     
     # Step 3: Send to e-ink device
