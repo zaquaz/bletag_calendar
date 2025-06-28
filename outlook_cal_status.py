@@ -26,7 +26,7 @@ STATUS_FILE = "calendar_status.json"  # File to track previous status
 # Supported tag sizes
 TAG_SIZES = {
     "1.54": (200, 200),    # 1.54 inch display
-    "2.13": (250, 122),     # 2.13 inch display
+    "2.1": (250, 122),     # 2.1 inch display  
     "2.9": (296, 128),     # 2.9 inch display
     "4.2": (400, 300),     # 4.2 inch display
     "7.5": (640, 384),     # 7.5 inch display
@@ -115,7 +115,19 @@ def get_calendar_events(ics_url: str) -> Optional[Calendar]:
         logger.info(f"Fetching calendar from: {ics_url}")
         response = requests.get(ics_url, timeout=60)
         response.raise_for_status()
-        cal = Calendar.from_ical(response.text)
+        
+        # Check if response looks like HTML instead of iCalendar data
+        response_text = response.text.strip()
+        if response_text.startswith('<') or 'html' in response_text.lower()[:100]:
+            logger.error("❌ Calendar URL returned HTML content instead of iCalendar data")
+            logger.error("   This usually means:")
+            logger.error("   • The calendar URL requires authentication")
+            logger.error("   • The calendar is private and not publicly accessible")
+            logger.error("   • The URL format has changed")
+            logger.error(f"   Response preview: {response_text[:200]}...")
+            return None
+        
+        cal = Calendar.from_ical(response_text)
         logger.info("Calendar fetched and parsed successfully")
         return cal
     except requests.exceptions.RequestException as e:
@@ -123,6 +135,10 @@ def get_calendar_events(ics_url: str) -> Optional[Calendar]:
         return None
     except Exception as e:
         logger.error(f"Error parsing calendar: {e}")
+        # If it's a parsing error and we got HTML content, provide helpful message
+        if hasattr(e, 'args') and e.args and 'Copyright (C) Microsoft Corporation' in str(e.args[0]):
+            logger.error("❌ The calendar URL returned HTML content (likely a Microsoft login page)")
+            logger.error("   Please check if the calendar is properly shared and publicly accessible")
         return None
 
 
@@ -462,7 +478,7 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Outlook Calendar Status to Image")
     parser.add_argument("--ics-url", default="", help="Outlook ICS calendar URL")
-    parser.add_argument("--tag-size", choices=["1.54", "2.13", "2.9", "4.2", "7.5"], default="2.9",
+    parser.add_argument("--tag-size", choices=["1.54", "2.1", "2.9", "4.2", "7.5"], default="2.9",
                        help="Tag size in inches (default: 2.9)")
     parser.add_argument("--check-window", type=int, default=DEFAULT_CHECK_WINDOW_MINUTES,
                        help=f"Minutes to check ahead for meetings (default: {DEFAULT_CHECK_WINDOW_MINUTES})")
