@@ -3,19 +3,22 @@
 Outlook Calendar Status
 """
 
+# Standard library imports
+import argparse
 import asyncio
-import sys
-import signal
-import json
 import hashlib
+import json
+import logging
 import os
+import signal
+import sys
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple, Dict, Any
+
+# Third-party imports
 import requests
 from icalendar import Calendar
 from PIL import Image, ImageDraw, ImageFont
-import argparse
-import logging
 
 
 

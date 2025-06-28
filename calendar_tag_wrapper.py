@@ -8,13 +8,14 @@ This script automates the process of:
 3. If so, sending it to the e-ink tag using gicisky_writer.py with rotation and mirroring
 """
 
+# Standard library imports
+import argparse
+import configparser
+import json
+import logging
+import os
 import subprocess
 import sys
-import os
-import argparse
-import logging
-import json
-import configparser
 from datetime import datetime, timedelta
 from pathlib import Path
 

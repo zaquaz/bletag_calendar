@@ -6,14 +6,18 @@ This script allows you to connect to a Gicisky e-ink tag via Bluetooth Low Energ
 """
 
 from __future__ import annotations
-from enum import Enum
+
+# Standard library imports
+import asyncio
 import logging
+import re
 import struct
 import traceback
-import asyncio
-import re
-from typing import Any, Callable, TypeVar, Optional, List
 from asyncio import Event, wait_for, sleep
+from enum import Enum
+from typing import Any, Callable, TypeVar, Optional, List
+
+# Third-party imports
 from PIL import Image
 from bleak import BleakClient, BleakError, BleakScanner
 from bleak.backends.device import BLEDevice
