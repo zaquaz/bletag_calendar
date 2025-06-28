@@ -2,17 +2,10 @@
 
 An "intelligent" system for displaying Outlook calendar status on Bluetooth Low Energy (BLE) e-ink tags with change detection and minimal power consumption.
 
-Supports gicisky tags (PICKSMART / NEMR********) tag- `--find-gicisky`: Find Gicisky-compatible devices and exit
-- `--interactive`: Interactive device selection and exit
-- `--test-connection DEVICE`: Test connection to specific device and exit
+Supports gicisky tags (PICKSMART / NEMR********) tags.
 
-## 📡 BLE Device Discovery & Scanning
 
-The system includes comprehensive Bluetooth Low Energy device discovery tools to improve connection reliability and help troubleshoot device issues.📡 BLE Device Discovery & Scanning-test-connection DEVICE`: Test connection to specific device and exit
-
-## 📡 BLE Device Discovery & Scanning
-
-The system includes comprehensive Bluetooth Low Energy device discovery tools to improve connection reliability and help troubleshoot device issues.# 🎯 Why E-ink Tags for Calendar Status?
+## 🎯 Why E-ink Tags for Calendar Status?
 
 E-ink displays are perfect for calendar status indicators because they:
 
@@ -36,11 +29,14 @@ Perfect for:
 - **Minimal resource usage**: Prevents unnecessary BLE transfers and image processing
 - **Status persistence**: Tracks availability state between runs
 
+### Display Modes
+- **Status Display**: Classic calendar status with availability indicators
+- **Proportional scaling**: Support for 1.54", 2.13", 2.9", 4.2", and 7.5" e-ink displays
+
 ### Advanced Image Processing
 - **Rotation support**: 0°, 90°, 180°, 270° rotation options
 - **Mirroring capabilities**: Horizontal and vertical image mirroring
 - **Smart compression**: Gicisky-compatible image compression for faster transfers
-- **Multiple tag sizes**: Support for 1.54", 2.13", 2.9", 4.2", and 7.5" e-ink displays with proportional scaling
 
 ### Robust BLE Communication
 - **Enhanced device discovery**: Multi-method BLE scanning with smart fallbacks
@@ -49,7 +45,7 @@ Perfect for:
 - **Interactive device selection**: User-guided device discovery and selection
 - **Connection testing**: Test device connectivity without writing images
 - **Service inspection**: Detailed BLE service and characteristic discovery
-- **Enhanced reliability**: 30-second timeouts with exponential backoff retry
+- **Enhanced reliability**: Configurable timeouts with exponential backoff retry
 - **Event-driven protocol**: Asynchronous notification handling for responsive transfers
 - **Connection management**: Automatic cleanup and error handling
 
@@ -85,7 +81,7 @@ Perfect for:
 
 3. **Configure your settings:**
    ```bash
-   python calendar_tag_wrapper.py --create-config
+   cp calendar_tag_config.ini.example calendar_tag_config.ini
    # Edit calendar_tag_config.ini with your calendar URL and device address
    ```
 
@@ -110,8 +106,8 @@ Perfect for:
    rotation = 90
    mirror_x = false
    mirror_y = false
-   scan_timeout = 60
-   connection_timeout = 90
+   scan_timeout = 10
+   connection_timeout = 30
    compression = false
    no_red = true
    
@@ -119,12 +115,12 @@ Perfect for:
    freshness_threshold = 5
    status_file = calendar_status.json
    ```
-  (Note: your tag may require different rotation or mirror settings)
+
 ## 🚀 Usage
 
 ### Quick Start
 
-Run the complete automated workflow:
+**Status Display Mode:**
 ```bash
 python calendar_tag_wrapper.py --config calendar_tag_config.ini
 ```
@@ -198,7 +194,7 @@ python gicisky_writer.py \
 ## 📋 Command Reference
 
 ### calendar_tag_wrapper.py
-Main automation script that orchestrates the entire workflow.
+Main automation script for status display mode.
 
 ```bash
 python calendar_tag_wrapper.py [OPTIONS]
@@ -237,13 +233,13 @@ python outlook_cal_status.py [OPTIONS]
 BLE communication and image transfer to e-ink tags.
 
 ```bash
-python gicisky_writer.py IMAGE --device ADDRESS [OPTIONS]
+python gicisky_writer.py [IMAGE] --device ADDRESS [OPTIONS]
 ```
 
 **Key Options:**
-- `IMAGE`: Path to image file
+- `IMAGE`: Path to image file (required for writing)
 - `--device ADDRESS`: BLE device address (required for image writing)
-- `--rotation DEGREES`: Image rotation
+- `--rotation DEGREES`: Image rotation (0, 90, 180, 270)
 - `--mirror-x`: Mirror horizontally
 - `--mirror-y`: Mirror vertically
 - `--threshold VALUE`: Black/white threshold (0-255)
@@ -255,7 +251,7 @@ python gicisky_writer.py IMAGE --device ADDRESS [OPTIONS]
 - `--interactive`: Interactive device selection and exit
 - `--test-connection DEVICE`: Test connection to specific device and exit
 
-## � BLE Device Discovery & Scanning
+## 📡 BLE Device Discovery & Scanning
 
 The system includes comprehensive Bluetooth Low Energy device discovery tools to improve connection reliability and help troubleshoot device issues.
 
@@ -304,8 +300,8 @@ Configure BLE timeouts and options in your config file:
 address = PICKSMART
 
 # BLE scanning timeouts (in seconds)
-scan_timeout = 60
-connection_timeout = 90
+scan_timeout = 10
+connection_timeout = 30
 
 # Device options
 compression = false
@@ -320,7 +316,7 @@ Adjust timeouts based on your environment:
 - **Reliable/Default**: `scan_timeout = 10`, `connection_timeout = 30` 
 - **High Reliability**: `scan_timeout = 30`, `connection_timeout = 90`
 
-## �🔧 Automation & Scheduling
+## 🔧 Automation & Scheduling
 
 ### Cron Job Setup (Linux/macOS)
 
@@ -372,6 +368,7 @@ crontab -e
 - Verify ICS URL is accessible
 - Check internet connection
 - Use `--force-update` to bypass cache
+- Test URL: `python test_calendar_url.py "YOUR_ICS_URL"`
 
 **"Image looks wrong"**
 - Adjust rotation and mirroring settings
@@ -380,10 +377,19 @@ crontab -e
 
 ### Debug Mode
 
-Enable verbose logging:
+Enable verbose logging by setting log level:
 ```bash
-python calendar_tag_wrapper.py --config my_config.ini --verbose
+# Python logging shows INFO level by default
+# All scripts now use consistent logging framework
+python calendar_tag_wrapper.py --config my_config.ini
 ```
+
+### Content-Type Detection Issues
+
+If calendar URL returns HTML instead of iCalendar data:
+- Check calendar sharing permissions in Outlook
+- Verify the ICS URL is publicly accessible
+- Use the test tool: `python test_content_type_detection.py`
 
 ## 💡 Customization
 
@@ -434,21 +440,29 @@ Status file example:
 - **Service inspection**: Detailed BLE service discovery for debugging
 - **Smart discovery algorithm**: Tries multiple methods (address, name, pattern) automatically
 
+### Logging Framework Standardization
+- **Consistent logging**: All scripts now use Python logging framework instead of print statements
+- **Log level control**: INFO, WARNING, ERROR levels for different message types
+- **Module-level configuration**: Proper logger setup for library usage
+- **User interface preservation**: Interactive prompts still use print for immediate feedback
+
 ### Calendar Processing Enhancements
 - **Improved error handling**: Better ICS URL parsing and network error recovery
+- **Content-Type detection**: Proper HTTP header checking for HTML vs iCalendar content
 - **Enhanced logging**: More detailed status information and error messages
 - **Configuration flexibility**: More granular control over device and display options
 
-### Wrapper Script Improvements  
-- **Full BLE integration**: All scanning options available in wrapper scripts
-- **Config file enhancements**: BLE timeouts and device options in configuration
-- **Command line overrides**: Override any config setting via command line
-- **Dry-run improvements**: Complete command preview including BLE parameters
+### Code Quality Improvements
+- **Import organization**: Standardized import grouping (stdlib, third-party, local)
+- **Modern Python compatibility**: Updated deprecated asyncio usage
+- **Enhanced documentation**: Improved code comments and function documentation
+- **Error handling**: Robust exception handling throughout the codebase
 
 ### Files Modified
-- **gicisky_writer.py**: Added comprehensive BLE scanning, device discovery, and connection testing
+- **gicisky_writer.py**: Added comprehensive BLE scanning, device discovery, connection testing, and logging
 - **calendar_tag_wrapper.py**: Integrated BLE scanning options and enhanced configuration
-- **outlook_cal_status.py**: Improved error handling for ICS URL parsing and network issues
+- **outlook_cal_status.py**: Improved error handling, content-type detection, and logging
+- **README.md**: Complete documentation overhaul reflecting all changes
 
 ## 🤝 Credits & Attribution
 
@@ -458,13 +472,11 @@ This project builds upon the excellent work from the **Gicisky Home Assistant in
 - **Original Author**: [eigger](https://github.com/eigger)
 - **License**: MIT License
 
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 The original gicisky BLE communication code is also under MIT License.
-
 
 ## 🤝 Contributing
 
@@ -475,6 +487,13 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+4. Test thoroughly with various tag sizes and configurations
+5. Update documentation if needed
+6. Submit a pull request
 
+### Testing
+
+Use the included test tools:
+- `test_calendar_url.py` - Verify calendar URL access
+- `test_content_type_detection.py` - Test content-type detection logic
+- `--dry-run` mode - Test configurations safely
