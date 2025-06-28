@@ -22,7 +22,11 @@ from PIL import Image
 from bleak import BleakClient, BleakError, BleakScanner
 from bleak.backends.device import BLEDevice
 
+# Configure logging
 _LOGGER = logging.getLogger(__name__)
+# Ensure basic logging configuration if not already configured
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Device configuration class
 class DeviceConfig:
@@ -736,9 +740,6 @@ if __name__ == "__main__":
         parser.add_argument("--test-connection", help="Test connection to specific device address/name")
         
         args = parser.parse_args()
-        
-        # Configure logging
-        logging.basicConfig(level=logging.INFO)
         
         # Handle scanning-only commands
         if args.scan_devices:
