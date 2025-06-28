@@ -519,8 +519,8 @@ async def main():
         logger.error("ICS URL must start with http:// or https://")
         return 1
     
-    print("🚀 OUTLOOK CALENDAR STATUS SCRIPT")
-    print("=" * 50)
+    logger.info("OUTLOOK CALENDAR STATUS SCRIPT")
+    logger.info("=" * 50)
     
     # Fetch calendar
     calendar = get_calendar_events(args.ics_url)

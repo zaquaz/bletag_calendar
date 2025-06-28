@@ -2,10 +2,17 @@
 
 An "intelligent" system for displaying Outlook calendar status on Bluetooth Low Energy (BLE) e-ink tags with change detection and minimal power consumption.
 
-Supports gicisky tags (PICKSMART / NEMR********) tags.
+Supports gicisky tags (PICKSMART / NEMR********) tag- `--find-gicisky`: Find Gicisky-compatible devices and exit
+- `--interactive`: Interactive device selection and exit
+- `--test-connection DEVICE`: Test connection to specific device and exit
 
+## 📡 BLE Device Discovery & Scanning
 
-## 🎯 Why E-ink Tags for Calendar Status?
+The system includes comprehensive Bluetooth Low Energy device discovery tools to improve connection reliability and help troubleshoot device issues.📡 BLE Device Discovery & Scanning-test-connection DEVICE`: Test connection to specific device and exit
+
+## 📡 BLE Device Discovery & Scanning
+
+The system includes comprehensive Bluetooth Low Energy device discovery tools to improve connection reliability and help troubleshoot device issues.# 🎯 Why E-ink Tags for Calendar Status?
 
 E-ink displays are perfect for calendar status indicators because they:
 
