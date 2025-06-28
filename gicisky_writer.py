@@ -17,7 +17,6 @@ from asyncio import Event, wait_for, sleep
 from PIL import Image
 from bleak import BleakClient, BleakError, BleakScanner
 from bleak.backends.device import BLEDevice
-from bleak.backends.scanner import AdvertisementData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -549,7 +548,7 @@ async def smart_device_discovery(device_address: str, scan_timeout: int = 10,
     Returns:
         BLEDevice if found, None otherwise
     """
-    start_time = asyncio.get_event_loop().time()
+    start_time = asyncio.get_running_loop().time()
     
     print(f"🎯 Smart discovery for device: {device_address}")
     print(f"   Scan timeout: {scan_timeout}s, Total timeout: {connection_timeout}s")
@@ -562,7 +561,7 @@ async def smart_device_discovery(device_address: str, scan_timeout: int = 10,
             return device
     
     # Check if we have time for more methods
-    elapsed = asyncio.get_event_loop().time() - start_time
+    elapsed = asyncio.get_running_loop().time() - start_time
     if elapsed >= connection_timeout:
         print("⏰ Timeout reached during direct lookup")
         return None
@@ -583,7 +582,7 @@ async def smart_device_discovery(device_address: str, scan_timeout: int = 10,
             return devices[0]  # Return first match
     
     # Method 3: Find any Gicisky devices if no specific match
-    elapsed = asyncio.get_event_loop().time() - start_time
+    elapsed = asyncio.get_running_loop().time() - start_time
     if elapsed < connection_timeout:
         print("🔍 Method 3: Looking for any Gicisky devices...")
         remaining_time = max(5, connection_timeout - elapsed)
