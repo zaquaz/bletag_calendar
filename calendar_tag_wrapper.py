@@ -8,13 +8,14 @@ This script automates the process of:
 3. If so, sending it to the e-ink tag using gicisky_writer.py with rotation and mirroring
 """
 
+# Standard library imports
+import argparse
+import configparser
+import json
+import logging
+import os
 import subprocess
 import sys
-import os
-import argparse
-import logging
-import json
-import configparser
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Default configuration
 DEFAULT_DEVICE_ADDRESS = "PICKSMART"
 DEFAULT_ROTATION = 90
-DEFAULT_MIRROR_X = True
+DEFAULT_MIRROR_X = False
 DEFAULT_MIRROR_Y = False
 STATUS_IMAGE_PATH = "status_output.png"
 FRESHNESS_THRESHOLD_MINUTES = 5
@@ -73,6 +74,18 @@ def load_config_file(config_path):
             if device_section.get('mirror_y'):
                 config_data['mirror_y'] = device_section.getboolean('mirror_y')
                 logger.info(f"   Mirror Y: {config_data['mirror_y']}")
+            if device_section.get('scan_timeout'):
+                config_data['scan_timeout'] = device_section.getint('scan_timeout')
+                logger.info(f"   BLE scan timeout: {config_data['scan_timeout']}s")
+            if device_section.get('connection_timeout'):
+                config_data['connection_timeout'] = device_section.getint('connection_timeout')
+                logger.info(f"   BLE connection timeout: {config_data['connection_timeout']}s")
+            if device_section.get('compression'):
+                config_data['compression'] = device_section.getboolean('compression')
+                logger.info(f"   Compression: {config_data['compression']}")
+            if device_section.get('no_red'):
+                config_data['no_red'] = device_section.getboolean('no_red')
+                logger.info(f"   No red channel: {config_data['no_red']}")
         
         # Options settings
         if config.has_section('options'):
@@ -116,10 +129,22 @@ address = PICKSMART
 rotation = 90
 
 # Mirror image horizontally (true/false)
-mirror_x = true
+mirror_x = false
 
 # Mirror image vertically (true/false)
 mirror_y = false
+
+# BLE scan timeout in seconds (how long to search for devices)
+scan_timeout = 10
+
+# BLE connection timeout in seconds (how long to wait for connection)
+connection_timeout = 30
+
+# Use compression for image data (required for some tag types)
+compression = false
+
+# Disable red channel (if device has issues with red processing)
+no_red = false
 
 [options]
 # Maximum age in minutes for image to be considered fresh
@@ -232,7 +257,7 @@ Examples:
   %(prog)s --config my_config.ini            # Use custom configuration file
   %(prog)s --create-config                   # Create example configuration file
   %(prog)s --device AA:BB:CC:DD:EE:FF         # Override device from config
-  %(prog)s --rotation 180 --no-mirror-x      # Different rotation, no mirroring
+  %(prog)s --rotation 180                    # Different rotation, no mirroring (default)
   %(prog)s --ics-url "https://..."           # Use different calendar URL
   %(prog)s --force-calendar-update           # Force calendar update even if status unchanged
   %(prog)s --dry-run                         # Test without sending to device
@@ -289,11 +314,21 @@ Examples:
     parser.add_argument("--mirror-x", action="store_true", 
                        default=config_data.get('mirror_x', DEFAULT_MIRROR_X),
                        help="Mirror image horizontally (default from config)")
-    parser.add_argument("--no-mirror-x", action="store_true",
-                       help="Disable horizontal mirroring")
     parser.add_argument("--mirror-y", action="store_true", 
                        default=config_data.get('mirror_y', DEFAULT_MIRROR_Y),
                        help="Mirror image vertically (default from config)")
+    parser.add_argument("--scan-timeout", type=int,
+                       default=config_data.get('scan_timeout', 10),
+                       help="BLE scan timeout in seconds (default from config or 10)")
+    parser.add_argument("--connection-timeout", type=int,
+                       default=config_data.get('connection_timeout', 30),
+                       help="BLE connection timeout in seconds (default from config or 30)")
+    parser.add_argument("--compression", action="store_true",
+                       default=config_data.get('compression', False),
+                       help="Use compression for image data (default from config)")
+    parser.add_argument("--no-red", action="store_true",
+                       default=config_data.get('no_red', False),
+                       help="Disable red channel (default from config)")
     
     # Control options (with config file defaults)
     parser.add_argument("--freshness-threshold", type=int, 
@@ -312,8 +347,8 @@ Examples:
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
     
-    # Handle mirror-x logic
-    mirror_x = args.mirror_x and not args.no_mirror_x
+    # Handle mirror logic
+    mirror_x = args.mirror_x
     
     logger.info("🏷️  CALENDAR TAG WRAPPER STARTING")
     logger.info("=" * 60)
@@ -330,6 +365,10 @@ Examples:
     logger.info(f"   Rotation: {args.rotation}°")
     logger.info(f"   Mirror X: {mirror_x}")
     logger.info(f"   Mirror Y: {args.mirror_y}")
+    logger.info(f"   BLE scan timeout: {args.scan_timeout}s")
+    logger.info(f"   BLE connection timeout: {args.connection_timeout}s")
+    logger.info(f"   Compression: {args.compression}")
+    logger.info(f"   No red channel: {args.no_red}")
     logger.info(f"   Freshness threshold: {args.freshness_threshold} minutes")
     logger.info(f"   Status file: {args.status_file}")
     logger.info(f"   Force calendar update: {args.force_calendar_update}")
@@ -385,11 +424,22 @@ Examples:
     
     if args.dry_run:
         logger.info("🏃 DRY RUN: Would send image to device, but skipping due to --dry-run")
-        logger.info(f"   Would run: python gicisky_writer.py --device {args.device} --rotation {args.rotation} {STATUS_IMAGE_PATH}")
+        
+        # Build complete command string
+        cmd_preview = f"python gicisky_writer.py --device {args.device} --rotation {args.rotation}"
+        cmd_preview += f" --scan-timeout {args.scan_timeout} --connection-timeout {args.connection_timeout}"
+        
         if mirror_x:
-            logger.info("   Would include: --mirror-x")
+            cmd_preview += " --mirror-x"
         if args.mirror_y:
-            logger.info("   Would include: --mirror-y")
+            cmd_preview += " --mirror-y"
+        if args.compression:
+            cmd_preview += " --compression"
+        if args.no_red:
+            cmd_preview += " --no-red"
+            
+        cmd_preview += f" {STATUS_IMAGE_PATH}"
+        logger.info(f"   Would run: {cmd_preview}")
         return 0
     
     # Step 3: Send to e-ink device
@@ -400,6 +450,8 @@ Examples:
         "python", "gicisky_writer.py",
         "--device", args.device,
         "--rotation", str(args.rotation),
+        "--scan-timeout", str(args.scan_timeout),
+        "--connection-timeout", str(args.connection_timeout),
         STATUS_IMAGE_PATH
     ]
     
@@ -408,6 +460,12 @@ Examples:
     
     if args.mirror_y:
         gicisky_cmd.insert(-1, "--mirror-y")
+    
+    if args.compression:
+        gicisky_cmd.insert(-1, "--compression")
+    
+    if args.no_red:
+        gicisky_cmd.insert(-1, "--no-red")
     
     success = run_command(gicisky_cmd, "Sending image to e-ink device")
     

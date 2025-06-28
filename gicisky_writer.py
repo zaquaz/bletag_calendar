@@ -6,22 +6,32 @@ This script allows you to connect to a Gicisky e-ink tag via Bluetooth Low Energ
 """
 
 from __future__ import annotations
-from enum import Enum
+
+# Standard library imports
+import asyncio
 import logging
+import re
 import struct
 import traceback
-from typing import Any, Callable, TypeVar
 from asyncio import Event, wait_for, sleep
+from enum import Enum
+from typing import Any, Callable, TypeVar, Optional, List
+
+# Third-party imports
 from PIL import Image
 from bleak import BleakClient, BleakError, BleakScanner
 from bleak.backends.device import BLEDevice
 
+# Configure logging
 _LOGGER = logging.getLogger(__name__)
+# Ensure basic logging configuration if not already configured
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Device configuration class
 class DeviceConfig:
     def __init__(self, width=296, height=128, red=True, tft=False, rotation=0, 
-                 mirror_x=False, mirror_y=True, compression=False):
+                 mirror_x=False, mirror_y=False, compression=False):
         self.width = width
         self.height = height
         self.red = red
@@ -353,19 +363,263 @@ class GiciskyClient:
         return bytes(packet)
 
 
+# BLE Device Discovery and Scanning Functions
+
+async def scan_for_devices(timeout: int = 10, name_filter: str = None) -> List[BLEDevice]:
+    """
+    Scan for BLE devices with optional name filtering.
+    
+    Args:
+        timeout: Scan timeout in seconds
+        name_filter: Optional filter for device names (case-insensitive)
+    
+    Returns:
+        List of discovered BLE devices
+    """
+    _LOGGER.info(f"Scanning for BLE devices (timeout: {timeout}s)...")
+    
+    devices = await BleakScanner.discover(timeout=timeout, return_adv=False)
+    
+    if name_filter:
+        filtered_devices = []
+        filter_lower = name_filter.lower()
+        for device in devices:
+            if device.name and filter_lower in device.name.lower():
+                filtered_devices.append(device)
+        devices = filtered_devices
+        _LOGGER.info(f"Found {len(devices)} devices matching '{name_filter}'")
+    else:
+        _LOGGER.info(f"Found {len(devices)} devices total")
+    
+    return devices
+
+
+async def find_device_by_address(address: str, timeout: int = 10) -> Optional[BLEDevice]:
+    """
+    Find a specific device by its BLE address.
+    
+    Args:
+        address: BLE device address (MAC address format)
+        timeout: Scan timeout in seconds
+    
+    Returns:
+        BLEDevice if found, None otherwise
+    """
+    _LOGGER.info(f"Looking for device with address: {address}")
+    
+    # Normalize address format (handle different separators)
+    normalized_address = address.upper().replace('-', ':').replace('_', ':')
+    
+    devices = await scan_for_devices(timeout=timeout)
+    
+    for device in devices:
+        device_addr = device.address.upper().replace('-', ':').replace('_', ':')
+        if device_addr == normalized_address:
+            _LOGGER.info(f"Found device: {device.name or 'Unknown'} ({device.address})")
+            return device
+    
+    _LOGGER.warning(f"Device {address} not found")
+    return None
+
+
+async def find_gicisky_devices(timeout: int = 10) -> List[BLEDevice]:
+    """
+    Find devices that are likely Gicisky e-ink tags.
+    
+    Args:
+        timeout: Scan timeout in seconds
+    
+    Returns:
+        List of potential Gicisky devices
+    """
+    _LOGGER.info("Scanning for Gicisky e-ink devices...")
+    
+    # Common Gicisky device name patterns
+    gicisky_patterns = [
+        "PICKSMART",
+        "GICISKY", 
+        "EINK",
+        "E-INK",
+        "TAG"
+    ]
+    
+    all_devices = await scan_for_devices(timeout=timeout)
+    gicisky_devices = []
+    
+    for device in all_devices:
+        if device.name:
+            device_name_upper = device.name.upper()
+            for pattern in gicisky_patterns:
+                if pattern in device_name_upper:
+                    gicisky_devices.append(device)
+                    break
+    
+    _LOGGER.info(f"Found {len(gicisky_devices)} potential Gicisky devices:")
+    for i, device in enumerate(gicisky_devices, 1):
+        print(f"   {i}. {device.name or 'Unknown'} ({device.address})")
+    
+    return gicisky_devices
+
+
+async def interactive_device_selection(timeout: int = 10) -> Optional[BLEDevice]:
+    """
+    Interactively scan for and select a BLE device.
+    
+    Args:
+        timeout: Scan timeout in seconds
+    
+    Returns:
+        Selected BLEDevice or None if cancelled
+    """
+    print("\n🔍 INTERACTIVE DEVICE SELECTION")
+    print("=" * 40)
+    
+    # First try to find Gicisky-like devices
+    gicisky_devices = await find_gicisky_devices(timeout)
+    
+    show_all_devices = False
+    
+    if gicisky_devices:
+        print(f"\n🏷️  Found {len(gicisky_devices)} Gicisky-like devices:")
+        for i, device in enumerate(gicisky_devices, 1):
+            print(f"   {i}. {device.name or 'Unknown'} ({device.address})")
+        
+        try:
+            choice = input(f"\nSelect device (1-{len(gicisky_devices)}) or 'a' for all devices, 'r' to rescan: ").strip().lower()
+            
+            if choice == 'r':
+                return await interactive_device_selection(timeout)
+            elif choice == 'a':
+                show_all_devices = True
+                print("\n🔍 Showing all devices as requested...")
+            elif choice.isdigit():
+                idx = int(choice) - 1
+                if 0 <= idx < len(gicisky_devices):
+                    return gicisky_devices[idx]
+                else:
+                    print("❌ Invalid selection")
+                    return None
+            else:
+                print("❌ Invalid input")
+                return None
+        except (ValueError, KeyboardInterrupt):
+            print("\n❌ Selection cancelled")
+            return None
+    else:
+        print("🔍 No Gicisky-like devices found. Showing all devices...")
+        show_all_devices = True
+    
+    # Show all devices if no Gicisky devices found or user requested all
+    if show_all_devices:
+        all_devices = await scan_for_devices(timeout)
+        
+        if not all_devices:
+            print("❌ No BLE devices found")
+            return None
+        
+        print(f"\n📱 All {len(all_devices)} discovered devices:")
+        for i, device in enumerate(all_devices, 1):
+            print(f"   {i}. {device.name or 'Unknown'} ({device.address})")
+        
+        try:
+            choice = input(f"\nSelect device (1-{len(all_devices)}) or 'r' to rescan: ").strip().lower()
+            
+            if choice == 'r':
+                return await interactive_device_selection(timeout)
+            elif choice.isdigit():
+                idx = int(choice) - 1
+                if 0 <= idx < len(all_devices):
+                    return all_devices[idx]
+                else:
+                    print("❌ Invalid selection")
+                    return None
+            else:
+                print("❌ Invalid input")
+                return None
+        except (ValueError, KeyboardInterrupt):
+            print("\n❌ Selection cancelled")
+            return None
+    
+    return None
+
+
+async def smart_device_discovery(device_address: str, scan_timeout: int = 10, 
+                                connection_timeout: int = 30) -> Optional[BLEDevice]:
+    """
+    Smart device discovery that tries multiple methods to find the device.
+    
+    Args:
+        device_address: Target device address or pattern
+        scan_timeout: BLE scan timeout in seconds  
+        connection_timeout: Total timeout for discovery process
+    
+    Returns:
+        BLEDevice if found, None otherwise
+    """
+    start_time = asyncio.get_running_loop().time()
+    
+    _LOGGER.info(f"Smart discovery for device: {device_address}")
+    _LOGGER.info(f"Scan timeout: {scan_timeout}s, Total timeout: {connection_timeout}s")
+    
+    # Method 1: Direct address lookup
+    if re.match(r'^[0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}[:-][0-9A-Fa-f]{2}$', device_address):
+        _LOGGER.info("Method 1: Direct address lookup...")
+        device = await find_device_by_address(device_address, scan_timeout)
+        if device:
+            return device
+    
+    # Check if we have time for more methods
+    elapsed = asyncio.get_running_loop().time() - start_time
+    if elapsed >= connection_timeout:
+        _LOGGER.warning("Timeout reached during direct lookup")
+        return None
+    
+    # Method 2: Name pattern matching
+    _LOGGER.info("Method 2: Name pattern matching...")
+    remaining_time = max(5, connection_timeout - elapsed)
+    devices = await scan_for_devices(timeout=min(scan_timeout, remaining_time), name_filter=device_address)
+    
+    if devices:
+        if len(devices) == 1:
+            _LOGGER.info(f"Found unique match: {devices[0].name} ({devices[0].address})")
+            return devices[0]
+        else:
+            _LOGGER.warning(f"Found {len(devices)} devices matching '{device_address}':")
+            for device in devices:
+                _LOGGER.warning(f"   - {device.name} ({device.address})")
+            return devices[0]  # Return first match
+    
+    # Method 3: Find any Gicisky devices if no specific match
+    elapsed = asyncio.get_running_loop().time() - start_time
+    if elapsed < connection_timeout:
+        _LOGGER.info("Method 3: Looking for any Gicisky devices...")
+        remaining_time = max(5, connection_timeout - elapsed)
+        gicisky_devices = await find_gicisky_devices(timeout=min(scan_timeout, remaining_time))
+        
+        if gicisky_devices:
+            _LOGGER.warning(f"Target device not found, but found {len(gicisky_devices)} Gicisky device(s)")
+            return gicisky_devices[0]  # Return first Gicisky device
+    
+    _LOGGER.error(f"Device discovery failed for: {device_address}")
+    return None
+
+
 # Convenience function for testing
 async def write_image_to_tag(device_address: str, image_path: str, 
                            threshold: int = 128, red_threshold: int = 128,
-                           device_config: DeviceConfig = None) -> bool:
+                           device_config: DeviceConfig = None,
+                           scan_timeout: int = 10, connection_timeout: int = 30) -> bool:
     """
-    Write an image to an e-ink tag.
+    Write an image to an e-ink tag with smart device discovery.
     
     Args:
-        device_address: BLE device address
+        device_address: BLE device address or name pattern
         image_path: Path to image file
         threshold: Black/white threshold (0-255)
         red_threshold: Red color threshold (0-255)
         device_config: Device configuration (uses default 2.9" config if None)
+        scan_timeout: BLE scan timeout in seconds
+        connection_timeout: Total connection timeout in seconds
     
     Returns:
         True if successful, False otherwise
@@ -374,17 +628,91 @@ async def write_image_to_tag(device_address: str, image_path: str,
         device_config = DeviceConfig()  # Default 2.9" config
     
     # Load image
-    image = Image.open(image_path)
+    try:
+        image = Image.open(image_path)
+        _LOGGER.info(f"Loaded image: {image.size} ({image_path})")
+    except Exception as e:
+        _LOGGER.error(f"Failed to load image {image_path}: {e}")
+        return False
     
-    # Create mock BLE device
-    class MockBLEDevice:
-        def __init__(self, address):
-            self.address = address
-            self.name = f"PICKSMART-{address}"
+    # Discover device
+    _LOGGER.info("DEVICE DISCOVERY")
+    _LOGGER.info("=" * 30)
     
-    ble_device = MockBLEDevice(device_address)
+    ble_device = await smart_device_discovery(device_address, scan_timeout, connection_timeout)
+    
+    if not ble_device:
+        _LOGGER.error(f"Could not find device: {device_address}")
+        _LOGGER.info("Troubleshooting tips:")
+        _LOGGER.info("   • Make sure the device is powered on and in pairing mode")
+        _LOGGER.info("   • Check if the device address is correct")
+        _LOGGER.info("   • Try increasing scan timeout with --scan-timeout")
+        _LOGGER.info("   • Use --scan-devices to see all available devices")
+        return False
+    
+    _LOGGER.info("CONNECTING TO DEVICE")
+    _LOGGER.info("=" * 30)
+    _LOGGER.info(f"Device: {ble_device.name or 'Unknown'}")
+    _LOGGER.info(f"Address: {ble_device.address}")
     
     return await update_image(ble_device, device_config, image, threshold, red_threshold)
+
+
+async def test_device_connection(device_address: str, scan_timeout: int = 10, 
+                               connection_timeout: int = 30) -> bool:
+    """
+    Test connection to a specific BLE device without writing any data.
+    
+    Args:
+        device_address: Target device address or pattern
+        scan_timeout: BLE scan timeout in seconds
+        connection_timeout: Total timeout for connection test
+    
+    Returns:
+        True if connection successful, False otherwise
+    """
+    _LOGGER.info(f"TESTING CONNECTION TO DEVICE: {device_address}")
+    _LOGGER.info("=" * 50)
+    
+    # Discover device
+    ble_device = await smart_device_discovery(device_address, scan_timeout, connection_timeout)
+    
+    if not ble_device:
+        _LOGGER.error(f"Could not find device: {device_address}")
+        return False
+    
+    _LOGGER.info(f"Device found: {ble_device.name or 'Unknown'} ({ble_device.address})")
+    
+    # Try to connect
+    _LOGGER.info("Attempting connection...")
+    client = BleakClient(ble_device)
+    
+    try:
+        await client.connect()
+        _LOGGER.info("Connection successful!")
+        
+        # Check services
+        _LOGGER.info("Checking services...")
+        services = client.services
+        service_list = list(services)
+        _LOGGER.info(f"Found {len(service_list)} services:")
+        
+        for service in service_list:
+            _LOGGER.info(f"   • {service.uuid}: {service.description}")
+            for char in service.characteristics:
+                props = ", ".join(char.properties)
+                _LOGGER.info(f"     - {char.uuid} ({props})")
+        
+        return True
+        
+    except Exception as e:
+        _LOGGER.error(f"Connection failed: {e}")
+        return False
+        
+    finally:
+        if client.is_connected:
+            await client.disconnect()
+            _LOGGER.info("Disconnected")
 
 
 if __name__ == "__main__":
@@ -393,22 +721,59 @@ if __name__ == "__main__":
     
     async def main():
         parser = argparse.ArgumentParser(description="Write image to Gicisky e-ink tag")
-        parser.add_argument("image", help="Path to image file")
-        parser.add_argument("--device", required=True, help="BLE device address")
+        parser.add_argument("image", nargs='?', help="Path to image file")
+        parser.add_argument("--device", help="BLE device address")
         parser.add_argument("--threshold", type=int, default=128, help="Black/white threshold (0-255)")
         parser.add_argument("--red-threshold", type=int, default=128, help="Red threshold (0-255)")
         parser.add_argument("--width", type=int, default=296, help="Display width")
         parser.add_argument("--height", type=int, default=128, help="Display height")
         parser.add_argument("--rotation", type=int, default=0, help="Rotation in degrees")
         parser.add_argument("--mirror-x", action="store_true", help="Mirror X axis")
-        parser.add_argument("--mirror-y", action="store_true", default=True, help="Mirror Y axis")
+        parser.add_argument("--mirror-y", action="store_true", help="Mirror Y axis")
         parser.add_argument("--compression", action="store_true", help="Use compression")
         parser.add_argument("--no-red", action="store_true", help="Disable red channel")
+        parser.add_argument("--scan-timeout", type=int, default=10, help="BLE scan timeout in seconds")
+        parser.add_argument("--connection-timeout", type=int, default=30, help="BLE connection timeout in seconds")
+        parser.add_argument("--scan-devices", action="store_true", help="Scan for all BLE devices and exit")
+        parser.add_argument("--find-gicisky", action="store_true", help="Find Gicisky-like devices and exit")
+        parser.add_argument("--interactive", action="store_true", help="Interactive device selection")
+        parser.add_argument("--test-connection", help="Test connection to specific device address/name")
         
         args = parser.parse_args()
         
-        # Configure logging
-        logging.basicConfig(level=logging.INFO)
+        # Handle scanning-only commands
+        if args.scan_devices:
+            _LOGGER.info("Scanning for all BLE devices...")
+            devices = await scan_for_devices(timeout=args.scan_timeout)
+            if devices:
+                print(f"\n📱 Found {len(devices)} devices:")
+                for i, device in enumerate(devices, 1):
+                    print(f"   {i}. {device.name or 'Unknown'} ({device.address})")
+            else:
+                print("❌ No devices found")
+            return
+        
+        if args.find_gicisky:
+            devices = await find_gicisky_devices(timeout=args.scan_timeout)
+            return
+        
+        if args.interactive:
+            device = await interactive_device_selection(timeout=args.scan_timeout)
+            if device:
+                print(f"\n✅ Selected device: {device.name or 'Unknown'} ({device.address})")
+            return
+        
+        if args.test_connection:
+            success = await test_device_connection(args.test_connection, args.scan_timeout, args.connection_timeout)
+            if success:
+                print("\n✅ Device connection test PASSED")
+            else:
+                print("\n❌ Device connection test FAILED")
+            return
+        
+        # Validate required arguments for image writing
+        if not args.image or not args.device:
+            parser.error("image and --device are required when not using scan-only commands")
         
         # Create device config
         device_config = DeviceConfig(
@@ -426,12 +791,14 @@ if __name__ == "__main__":
             args.image,
             args.threshold,
             args.red_threshold,
-            device_config
+            device_config,
+            args.scan_timeout,
+            args.connection_timeout
         )
         
         if success:
-            print("✅ Image written successfully!")
+            _LOGGER.info("Image written successfully!")
         else:
-            print("❌ Failed to write image")
+            _LOGGER.error("Failed to write image")
     
     asyncio.run(main())

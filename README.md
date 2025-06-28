@@ -2,10 +2,17 @@
 
 An "intelligent" system for displaying Outlook calendar status on Bluetooth Low Energy (BLE) e-ink tags with change detection and minimal power consumption.
 
-Supports gicisky tags (PICKSMART / NEMR********) tags.
+Supports gicisky tags (PICKSMART / NEMR********) tag- `--find-gicisky`: Find Gicisky-compatible devices and exit
+- `--interactive`: Interactive device selection and exit
+- `--test-connection DEVICE`: Test connection to specific device and exit
 
+## 📡 BLE Device Discovery & Scanning
 
-## 🎯 Why E-ink Tags for Calendar Status?
+The system includes comprehensive Bluetooth Low Energy device discovery tools to improve connection reliability and help troubleshoot device issues.📡 BLE Device Discovery & Scanning-test-connection DEVICE`: Test connection to specific device and exit
+
+## 📡 BLE Device Discovery & Scanning
+
+The system includes comprehensive Bluetooth Low Energy device discovery tools to improve connection reliability and help troubleshoot device issues.# 🎯 Why E-ink Tags for Calendar Status?
 
 E-ink displays are perfect for calendar status indicators because they:
 
@@ -36,6 +43,12 @@ Perfect for:
 - **Multiple tag sizes**: Support for 1.54", 2.13", 2.9", 4.2", and 7.5" e-ink displays with proportional scaling
 
 ### Robust BLE Communication
+- **Enhanced device discovery**: Multi-method BLE scanning with smart fallbacks
+- **Device pattern recognition**: Automatically detects PICKSMART, GICISKY, EINK, and TAG devices
+- **Configurable timeouts**: Adjustable scan and connection timeouts for different environments
+- **Interactive device selection**: User-guided device discovery and selection
+- **Connection testing**: Test device connectivity without writing images
+- **Service inspection**: Detailed BLE service and characteristic discovery
 - **Enhanced reliability**: 30-second timeouts with exponential backoff retry
 - **Event-driven protocol**: Asynchronous notification handling for responsive transfers
 - **Connection management**: Automatic cleanup and error handling
@@ -95,8 +108,12 @@ Perfect for:
    [device]
    address = YOUR_TAG_BLE_ADDRESS
    rotation = 90
-   mirror_x = true
+   mirror_x = false
    mirror_y = false
+   scan_timeout = 60
+   connection_timeout = 90
+   compression = false
+   no_red = true
    
    [options]
    freshness_threshold = 5
@@ -130,7 +147,31 @@ python calendar_tag_wrapper.py \
   --config calendar_tag_config.ini \
   --device AA:BB:CC:DD:EE:FF \
   --rotation 180 \
-  --mirror-x
+  --mirror-x \
+  --scan-timeout 30 \
+  --connection-timeout 60
+```
+
+### BLE Device Discovery
+
+**Scan for all BLE devices:**
+```bash
+python gicisky_writer.py --scan-devices --scan-timeout 10
+```
+
+**Find Gicisky-compatible devices:**
+```bash
+python gicisky_writer.py --find-gicisky --scan-timeout 10
+```
+
+**Interactive device selection:**
+```bash
+python gicisky_writer.py --interactive --scan-timeout 10
+```
+
+**Test device connectivity:**
+```bash
+python gicisky_writer.py --test-connection "PICKSMART" --scan-timeout 10
 ```
 
 ### Individual Components
@@ -149,7 +190,9 @@ python gicisky_writer.py \
   --device AA:BB:CC:DD:EE:FF \
   --image status_output.png \
   --rotation 90 \
-  --mirror-x
+  --mirror-x \
+  --scan-timeout 15 \
+  --connection-timeout 45
 ```
 
 ## 📋 Command Reference
@@ -169,6 +212,10 @@ python calendar_tag_wrapper.py [OPTIONS]
 - `--rotation DEGREES`: Image rotation (0, 90, 180, 270)
 - `--mirror-x`: Mirror image horizontally
 - `--mirror-y`: Mirror image vertically
+- `--scan-timeout SECONDS`: BLE scan timeout (default: 10s)
+- `--connection-timeout SECONDS`: BLE connection timeout (default: 30s)
+- `--compression`: Enable image compression
+- `--no-red`: Disable red channel processing
 
 ### outlook_cal_status.py
 Calendar status detection and image generation.
@@ -183,6 +230,8 @@ python outlook_cal_status.py [OPTIONS]
 - `--status-file FILE`: Status tracking JSON file
 - `--force-update`: Ignore status cache and force regeneration
 - `--check-window MINUTES`: Minutes to look ahead for meetings
+- `--tag-size SIZE`: Tag size for proportional scaling (1.54, 2.13, 2.9, 4.2, 7.5)
+- `--save-image`: Save generated image to file
 
 ### gicisky_writer.py
 BLE communication and image transfer to e-ink tags.
@@ -193,14 +242,85 @@ python gicisky_writer.py IMAGE --device ADDRESS [OPTIONS]
 
 **Key Options:**
 - `IMAGE`: Path to image file
-- `--device ADDRESS`: BLE device address (required)
+- `--device ADDRESS`: BLE device address (required for image writing)
 - `--rotation DEGREES`: Image rotation
 - `--mirror-x`: Mirror horizontally
 - `--mirror-y`: Mirror vertically
 - `--threshold VALUE`: Black/white threshold (0-255)
 - `--compression`: Enable image compression
+- `--scan-timeout SECONDS`: BLE scan timeout (default: 10s)
+- `--connection-timeout SECONDS`: BLE connection timeout (default: 30s)
+- `--scan-devices`: Scan for all BLE devices and exit
+- `--find-gicisky`: Find Gicisky-compatible devices and exit
+- `--interactive`: Interactive device selection and exit
+- `--test-connection DEVICE`: Test connection to specific device and exit
 
-## 🔧 Automation & Scheduling
+## � BLE Device Discovery & Scanning
+
+The system includes comprehensive Bluetooth Low Energy device discovery tools to improve connection reliability and help troubleshoot device issues.
+
+### Smart Discovery Algorithm
+
+The BLE discovery system uses multiple methods to find your device:
+
+1. **Direct address lookup** - Exact MAC address matching
+2. **Name pattern matching** - Search by device name or partial string
+3. **Gicisky device detection** - Automatic recognition of common patterns:
+   - PICKSMART
+   - GICISKY 
+   - EINK / E-INK
+   - TAG
+
+### Discovery Tools
+
+**Scan all BLE devices in range:**
+```bash
+python gicisky_writer.py --scan-devices --scan-timeout 15
+```
+
+**Find only Gicisky-compatible devices:**
+```bash
+python gicisky_writer.py --find-gicisky --scan-timeout 10
+```
+
+**Interactive device selection:**
+```bash
+python gicisky_writer.py --interactive
+```
+
+**Test device connectivity:**
+```bash
+python gicisky_writer.py --test-connection "PICKSMART"
+python gicisky_writer.py --test-connection "AA:BB:CC:DD:EE:FF"
+```
+
+### Configuration Options
+
+Configure BLE timeouts and options in your config file:
+
+```ini
+[device]
+# Device address or name pattern
+address = PICKSMART
+
+# BLE scanning timeouts (in seconds)
+scan_timeout = 60
+connection_timeout = 90
+
+# Device options
+compression = false
+no_red = true
+```
+
+### Timeout Tuning
+
+Adjust timeouts based on your environment:
+
+- **Fast/Stable**: `scan_timeout = 5`, `connection_timeout = 15`
+- **Reliable/Default**: `scan_timeout = 10`, `connection_timeout = 30` 
+- **High Reliability**: `scan_timeout = 30`, `connection_timeout = 90`
+
+## �🔧 Automation & Scheduling
 
 ### Cron Job Setup (Linux/macOS)
 
@@ -230,11 +350,22 @@ crontab -e
 **"No BLE device found"**
 - Ensure your e-ink tag is powered on and in pairing mode
 - Check that the device address in config is correct
-- Try scanning: `python gicisky_writer.py --scan`
+- Use device discovery tools:
+  ```bash
+  python gicisky_writer.py --scan-devices
+  python gicisky_writer.py --find-gicisky
+  python gicisky_writer.py --interactive
+  ```
+- Try using device name instead of address (e.g., "PICKSMART")
 
 **"Connection timeout"**
 - Tag may be out of range or low battery
 - Try moving closer to the tag
+- Increase timeout values in config or command line:
+  ```bash
+  --scan-timeout 30 --connection-timeout 90
+  ```
+- Test connectivity: `python gicisky_writer.py --test-connection "YOUR_DEVICE"`
 - Restart the tag by power cycling
 
 **"Calendar not updating"**
@@ -292,6 +423,32 @@ Status file example:
   "next_event_end": "2024-01-15T12:00:00"
 }
 ```
+
+## 🆕 Recent Updates
+
+### BLE Device Discovery & Connection Improvements
+- **Enhanced device scanning**: Multi-method BLE discovery with smart fallbacks
+- **Device pattern recognition**: Automatic detection of PICKSMART, GICISKY, EINK devices
+- **Configurable timeouts**: Adjustable scan and connection timeouts for reliability
+- **Interactive tools**: User-guided device selection and connection testing
+- **Service inspection**: Detailed BLE service discovery for debugging
+- **Smart discovery algorithm**: Tries multiple methods (address, name, pattern) automatically
+
+### Calendar Processing Enhancements
+- **Improved error handling**: Better ICS URL parsing and network error recovery
+- **Enhanced logging**: More detailed status information and error messages
+- **Configuration flexibility**: More granular control over device and display options
+
+### Wrapper Script Improvements  
+- **Full BLE integration**: All scanning options available in wrapper scripts
+- **Config file enhancements**: BLE timeouts and device options in configuration
+- **Command line overrides**: Override any config setting via command line
+- **Dry-run improvements**: Complete command preview including BLE parameters
+
+### Files Modified
+- **gicisky_writer.py**: Added comprehensive BLE scanning, device discovery, and connection testing
+- **calendar_tag_wrapper.py**: Integrated BLE scanning options and enhanced configuration
+- **outlook_cal_status.py**: Improved error handling for ICS URL parsing and network issues
 
 ## 🤝 Credits & Attribution
 
