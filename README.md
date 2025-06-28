@@ -2,8 +2,10 @@
 
 An "intelligent" system for displaying Outlook calendar status on Bluetooth Low Energy (BLE) e-ink tags with change detection and minimal power consumption.
 
-Supports gicisky tags (PICKSMART / NEMR********) tags.## 📡 BLE Device Discovery & Scanning## 📡 BLE Device Discovery & Scanning
-## 🎯 Why E-ink Tags for C## 🔧 Automation & Schedulinglendar Status?
+Supports gicisky tags (PICKSMART / NEMR********) tags.
+
+
+## 🎯 Why E-ink Tags for Calendar Status?
 
 E-ink displays are perfect for calendar status indicators because they:
 
