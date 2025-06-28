@@ -17,6 +17,7 @@ from asyncio import Event, wait_for, sleep
 from PIL import Image
 from bleak import BleakClient, BleakError, BleakScanner
 from bleak.backends.device import BLEDevice
+from bleak.backends.scanner import AdvertisementData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -469,11 +470,12 @@ async def interactive_device_selection(timeout: int = 10) -> Optional[BLEDevice]
     # First try to find Gicisky-like devices
     gicisky_devices = await find_gicisky_devices(timeout)
     
+    show_all_devices = False
+    
     if gicisky_devices:
         print(f"\n🏷️  Found {len(gicisky_devices)} Gicisky-like devices:")
         for i, device in enumerate(gicisky_devices, 1):
-            rssi_info = f" (RSSI: {device.rssi})" if hasattr(device, 'rssi') and device.rssi else ""
-            print(f"   {i}. {device.name or 'Unknown'} ({device.address}){rssi_info}")
+            print(f"   {i}. {device.name or 'Unknown'} ({device.address})")
         
         try:
             choice = input(f"\nSelect device (1-{len(gicisky_devices)}) or 'a' for all devices, 'r' to rescan: ").strip().lower()
@@ -481,7 +483,8 @@ async def interactive_device_selection(timeout: int = 10) -> Optional[BLEDevice]
             if choice == 'r':
                 return await interactive_device_selection(timeout)
             elif choice == 'a':
-                pass  # Fall through to show all devices
+                show_all_devices = True
+                print("\n🔍 Showing all devices as requested...")
             elif choice.isdigit():
                 idx = int(choice) - 1
                 if 0 <= idx < len(gicisky_devices):
@@ -489,40 +492,46 @@ async def interactive_device_selection(timeout: int = 10) -> Optional[BLEDevice]
                 else:
                     print("❌ Invalid selection")
                     return None
+            else:
+                print("❌ Invalid input")
+                return None
         except (ValueError, KeyboardInterrupt):
             print("\n❌ Selection cancelled")
             return None
+    else:
+        print("🔍 No Gicisky-like devices found. Showing all devices...")
+        show_all_devices = True
     
     # Show all devices if no Gicisky devices found or user requested all
-    if not gicisky_devices:
-        print("🔍 No Gicisky-like devices found. Showing all devices...")
-    
-    all_devices = await scan_for_devices(timeout)
-    
-    if not all_devices:
-        print("❌ No BLE devices found")
-        return None
-    
-    print(f"\n📱 All {len(all_devices)} discovered devices:")
-    for i, device in enumerate(all_devices, 1):
-        rssi_info = f" (RSSI: {device.rssi})" if hasattr(device, 'rssi') and device.rssi else ""
-        print(f"   {i}. {device.name or 'Unknown'} ({device.address}){rssi_info}")
-    
-    try:
-        choice = input(f"\nSelect device (1-{len(all_devices)}) or 'r' to rescan: ").strip().lower()
+    if show_all_devices:
+        all_devices = await scan_for_devices(timeout)
         
-        if choice == 'r':
-            return await interactive_device_selection(timeout)
-        elif choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(all_devices):
-                return all_devices[idx]
+        if not all_devices:
+            print("❌ No BLE devices found")
+            return None
+        
+        print(f"\n📱 All {len(all_devices)} discovered devices:")
+        for i, device in enumerate(all_devices, 1):
+            print(f"   {i}. {device.name or 'Unknown'} ({device.address})")
+        
+        try:
+            choice = input(f"\nSelect device (1-{len(all_devices)}) or 'r' to rescan: ").strip().lower()
+            
+            if choice == 'r':
+                return await interactive_device_selection(timeout)
+            elif choice.isdigit():
+                idx = int(choice) - 1
+                if 0 <= idx < len(all_devices):
+                    return all_devices[idx]
+                else:
+                    print("❌ Invalid selection")
+                    return None
             else:
-                print("❌ Invalid selection")
+                print("❌ Invalid input")
                 return None
-    except (ValueError, KeyboardInterrupt):
-        print("\n❌ Selection cancelled")
-        return None
+        except (ValueError, KeyboardInterrupt):
+            print("\n❌ Selection cancelled")
+            return None
     
     return None
 
@@ -735,8 +744,7 @@ if __name__ == "__main__":
             if devices:
                 print(f"\n📱 Found {len(devices)} devices:")
                 for i, device in enumerate(devices, 1):
-                    rssi_info = f" (RSSI: {device.rssi})" if hasattr(device, 'rssi') and device.rssi else ""
-                    print(f"   {i}. {device.name or 'Unknown'} ({device.address}){rssi_info}")
+                    print(f"   {i}. {device.name or 'Unknown'} ({device.address})")
             else:
                 print("❌ No devices found")
             return
